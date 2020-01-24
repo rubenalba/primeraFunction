@@ -44,5 +44,21 @@ namespace primeraFunction
 
             return new OkObjectResult(querySegment);
         }
+
+        [FunctionName("UserInsert")]
+        public static async Task<IActionResult> UserInsert(
+           [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] User user,
+           [Table("Users", partitionKey: "default", Connection = "ConnectionString")] CloudTable Users, /*Conexion a la tabla*/
+           [Table("Users", Connection = "ConnectionString")] IAsyncCollector<User> collector)  /*Conexion a la tabla (envio)*/
+        {
+            if (Users == null)
+            {
+                return new ConflictResult();
+            }
+
+            await collector.AddAsync(user);
+            return new OkResult();
+        }
+
     }
 }

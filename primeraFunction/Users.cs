@@ -60,5 +60,21 @@ namespace primeraFunction
             return new OkResult();
         }
 
+        [FunctionName("UserDelete")]
+        public static async Task<IActionResult> DeleteUser(
+            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)]  HttpRequest req,
+            [Table("Users", partitionKey: "default", rowKey:"{code}", Connection = "ConnectionString")] CloudTable Users,
+            [Table("Users", Connection = "ConnectionString")] CloudTable userTable)
+        {
+            if (Users == null)
+            {
+                return new NotFoundResult();
+            }
+
+            var operation = TableOperation.Delete(Users);
+            await userTable.ExecuteAsync(operation);
+            return new OkResult();
+        }
+
     }
 }

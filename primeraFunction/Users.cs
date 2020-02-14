@@ -14,6 +14,7 @@ using System.Net;
 using System;
 using Microsoft.WindowsAzure.Storage;
 using System.Configuration;
+using System.IO;
 
 namespace primeraFunction
 {
@@ -36,31 +37,41 @@ namespace primeraFunction
         [FunctionName("GetAllUser")]
         public static async Task<IActionResult> GetAll(
               [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)] HttpRequest req,
-              [Table("Users",partitionKey:"default", Connection = "ConnectionString")] CloudTable Users,
+              [Table("Users", Connection = "ConnectionString")] CloudTable Users,
               ILogger log)
         {
-            var tableQuery = new TableQuery<User>();
+            log.LogInformation("Obteniendo Todos los usuarios");
+            var tableQuery = new TableQuery<UserTableEntity>();
             var querySegment = await Users.ExecuteQuerySegmentedAsync(tableQuery, null);
 
-            return new OkObjectResult(querySegment);
+            return new OkObjectResult(querySegment.Select(Map.ToUser));
         }
 
         [FunctionName("UserInsert")]
         public static async Task<IActionResult> UserInsert(
-           [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] User user,
-           [Table("Users", partitionKey: "default", Connection = "ConnectionString")] CloudTable Users, /*Conexion a la tabla*/
-           [Table("Users", Connection = "ConnectionString")] IAsyncCollector<User> collector)  /*Conexion a la tabla (envio)*/
+           [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "Users")]HttpRequest req,
+           [Table("Users", Connection = "ConnectionString")] IAsyncCollector<UserTableEntity> userTable,
+           ILogger log)  /*Conexion a la tabla (envio)*/
         {
-            if (Users == null)
-            {
-                return new ConflictResult();
-            }
+            log.LogInformation("Insert user");
 
-            await collector.AddAsync(user);
-            return new OkResult();
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+            var input = JsonConvert.DeserializeObject<User>(requestBody);
+
+            var user = new User()
+            {
+                Nombre = "Bort",
+                Rol = "Desconocido",
+                PartitionKey = "Spain",
+                RowKey = "2",
+                Timestamp = DateTime.UtcNow
+            };
+            await userTable.AddAsync(user.ToTableEntity());
+            
+            return new OkObjectResult(user);
         }
 
-        [FunctionName("UserDelete")]
+        /*[FunctionName("UserDelete")]
         public static async Task<IActionResult> DeleteUser(
             [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)]  HttpRequest req,
             [Table("Users", partitionKey: "default", rowKey:"{code}", Connection = "ConnectionString")] CloudTable Users,
@@ -74,7 +85,7 @@ namespace primeraFunction
             var operation = TableOperation.Delete(Users);
             await userTable.ExecuteAsync(operation);
             return new OkResult();
-        }
+        }*/
 
     }
 }

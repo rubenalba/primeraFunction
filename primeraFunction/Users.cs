@@ -67,25 +67,57 @@ namespace primeraFunction
                 Timestamp = DateTime.UtcNow
             };
             await userTable.AddAsync(user.ToTableEntity());
-            
+
             return new OkObjectResult(user);
         }
 
-        /*[FunctionName("UserDelete")]
+        [FunctionName("Table_DeleteTodo")]
         public static async Task<IActionResult> DeleteUser(
-            [HttpTrigger(AuthorizationLevel.Function, "delete", Route = null)]  HttpRequest req,
-            [Table("Users", partitionKey: "default", rowKey:"{code}", Connection = "ConnectionString")] CloudTable Users,
-            [Table("Users", Connection = "ConnectionString")] CloudTable userTable)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "Users/{id}")]HttpRequest req,
+        [Table("Users", Connection = "ConnectionString")] CloudTable userTable,
+        ILogger log, string id)
         {
-            if (Users == null)
+            var deleteOperation = TableOperation.Delete(
+                new TableEntity() { PartitionKey = "Spain", RowKey = id, ETag = "*" });
+            try
+            {
+                var deleteResult = await userTable.ExecuteAsync(deleteOperation);
+            }
+            catch (StorageException e) when (e.RequestInformation.HttpStatusCode == 404)
             {
                 return new NotFoundResult();
             }
-
-            var operation = TableOperation.Delete(Users);
-            await userTable.ExecuteAsync(operation);
             return new OkResult();
-        }*/
-
+        }
     }
+
+    /*[FunctionName("Table_UpdateUSer")]
+    public static async Task<IActionResult> UpdateTodo(
+    [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "todo2/{id}")]HttpRequest req,
+    [Table("todos", Connection = "AzureWebJobsStorage")] CloudTable todoTable,
+    TraceWriter log, string id)
+{
+
+    string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+    var updated = JsonConvert.DeserializeObject<TodoUpdateModel>(requestBody);
+    var findOperation = TableOperation.Retrieve<TodoTableEntity>("TODO", id);
+    var findResult = await todoTable.ExecuteAsync(findOperation);
+    if (findResult.Result == null)
+    {
+        return new NotFoundResult();
+    }
+    var existingRow = (TodoTableEntity)findResult.Result;
+
+    existingRow.IsCompleted = updated.IsCompleted;
+    if (!string.IsNullOrEmpty(updated.TaskDescription))
+    {
+        existingRow.TaskDescription = updated.TaskDescription;
+    }
+
+    var replaceOperation = TableOperation.Replace(existingRow);
+    await todoTable.ExecuteAsync(replaceOperation);
+
+    return new OkObjectResult(existingRow.ToTodo());
+}*/
+
 }
